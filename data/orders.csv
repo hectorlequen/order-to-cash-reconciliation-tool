@@ -1,0 +1,22 @@
+order_id,customer_id,order_date,product,category,quantity,unit_price,currency,expected_amount,payment_reference,order_status
+ORD-1001,CUST-001,2026-06-01,Mechanical Keyboard,Electronics,1,120.0,EUR,120.0,pi_1001,PAID
+ORD-1002,CUST-002,2026-06-01,Standing Desk Mat,Office,2,35.0,EUR,70.0,pi_1002,paid
+ORD-1003,CUST-003,2026-06-02,USB-C Dock,Electronics,1,89.9,EUR,89.9,pi_1003,Completed
+ORD-2001,CUST-004,2026-06-02,Noise Cancelling Headphones,Electronics,1,199.0,EUR,199.0,pi_2001,PAID
+ORD-2002,CUST-005,2026-06-02,Office Chair,Office,1,249.0,EUR,249.0,pi_2002,PAID
+ORD-2003,CUST-006,2026-06-03,Laptop Stand,Office,1,55.0,EUR,55.0,pi_2003,PENDING
+ORD-2004,CUST-007,2026-06-03,Wireless Mouse,Electronics,1,39.9,EUR,39.9,pi_2004,PENDING
+ORD-2005,CUST-008,2026-06-04,External Monitor,Electronics,1,300.0,EUR,300.0,pi_2005,PAID
+ORD-2006,CUST-009,2026-06-04,Premium Webcam,Electronics,1,95.0,EUR,95.0,pi_2006,PAID
+ORD-3001,CUST-010,2026-06-05,Ergonomic Keyboard,Electronics,1,150.0,EUR,150.0,pi_3001,PAID
+ORD-3002,CUST-011,2026-06-05,Desk Lamp,Office,2,45.0,EUR,90.0,pi_3002,PAID
+ORD-4001,CUST-012,2026-06-06,Notebook Pack,Stationery,3,12.0,EUR,36.0,pi_4001,PAID
+ORD-4001,CUST-012,2026-06-06,Notebook Pack,Stationery,3,12.0,EUR,36.0,pi_4001,PAID
+ORD-4002,CUST-013,2026-15-06,Cable Organizer,Office,1,18.0,EUR,18.0,pi_4002,PAID
+ORD-4003,CUST-014,2026-06-07,HDMI Cable,Electronics,-2,15.0,EUR,-30.0,pi_4003,PAID
+ORD-4004,CUST-015,2026-06-07,Portable SSD,Electronics,1,,EUR,,pi_4004,PAID
+ORD-4005,CUST-999,2026-06-08,Smart Plug,Electronics,1,29.0,EUR,29.0,pi_4005,PAID
+ORD-4006,CUST-016,2026-06-08,Desk Shelf,Office,1,75.0,USD,75.0,pi_4006,PAID
+ORD-4007,CUST-017,2026-06-09,Mouse Pad,Office,1,20.0,EUR,20.0,,PAID
+ORD-4008,CUST-018,2026-06-09,Laptop Sleeve,Accessories,1,35.0,EUR,35.0,pi_4008,CANCELLED
+ORD-4009,CUST-019,2026-06-10,Phone Stand,Accessories,1,25.0,EUR,25.0,pi_4009,PAID

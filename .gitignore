@@ -1,0 +1,22 @@
+# Virtual environment
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+
+# Ruff
+.ruff_cache/
+
+# Pytest
+.pytest_cache/
+
+# VS Code
+.vscode/
+
+# MacOS
+.DS_Store
+
+# Project outputs
+output/
+logs/
