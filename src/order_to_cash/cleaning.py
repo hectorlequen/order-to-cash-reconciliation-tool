@@ -12,6 +12,7 @@ def clean_orders(df: pd.DataFrame) -> pd.DataFrame:
         df = normalize_column_lowercase(df, column_name)
         df = trim_spaces(df, column_name)
     df = remove_duplicates(df, "order_id")
+    df = normalize_missing_values(df)
     df = normalize_currency(df, ["unit_price", "expected_amount"])
     return df
 
@@ -22,8 +23,54 @@ def clean_payments(df: pd.DataFrame) -> pd.DataFrame:
         df = normalize_column_lowercase(df, column_name)
         df = trim_spaces(df, column_name)
     df = remove_duplicates(df, "payment_id")
+    df = normalize_missing_values(df)
     df = normalize_currency(df, ["amount_paid", "refund_amount"])
     return df
+
+
+def validate_orders(
+    df: pd.DataFrame,
+    date_column_name: str = "order_date",
+    critical_fields: list[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if critical_fields is None:
+        critical_fields = ["order_id", "expected_amount"]
+    return validate_df(df, date_column_name, critical_fields)
+
+
+def validate_payments(
+    df: pd.DataFrame,
+    date_column_name: str = "payment_date",
+    critical_fields: list[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if critical_fields is None:
+        critical_fields = ["payment_id", "amount_paid"]
+    return validate_df(df, date_column_name, critical_fields)
+
+
+def validate_df(
+    df: pd.DataFrame,
+    date_column_name: str,
+    critical_fields: list[str],
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    df = df.copy()
+    rejected_indexes = []
+    rejection_reasons = {}
+    for idx, row in df.iterrows():
+        reject_reasons = []
+        if not is_valid_date(row[date_column_name]):
+            reject_reasons.append("invalid date")
+        for field in critical_fields:
+            if not has_critical_field(row, field):
+                reject_reasons.append(f"missing {field}")
+        if reject_reasons:
+            rejected_indexes.append(idx)
+            rejection_reasons[idx] = ", ".join(reject_reasons)
+
+    df_valid = df.drop(rejected_indexes)
+    df_rejected = df.loc[rejected_indexes].copy()
+    df_rejected["rejection_reason"] = df_rejected.index.map(rejection_reasons)
+    return df_valid, df_rejected
 
 
 def normalize_column_lowercase(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
@@ -39,6 +86,12 @@ def trim_spaces(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
     df[column_name] = df[column_name].apply(
         lambda x: x.strip() if isinstance(x, str) else x
     )
+    return df
+
+
+def normalize_missing_values(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df = df.replace("", None)
     return df
 
 
@@ -89,3 +142,11 @@ def get_exchange_rate(currency_from: str, currency_to: str) -> float:
     except (KeyError, ValueError) as e:
         logger.error(f"Failed to parse exchange rate response: {e}")
         raise
+
+
+def is_valid_date(_date: str) -> bool:
+    return not pd.isnull(pd.to_datetime(_date, errors="coerce"))
+
+
+def has_critical_field(row: pd.Series, field: str) -> bool:
+    return not pd.isnull(row[field])
