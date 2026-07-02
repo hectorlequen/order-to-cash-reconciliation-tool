@@ -1,6 +1,9 @@
 import pandas as pd
+import pytest
+import requests
 
 from order_to_cash.cleaning import (
+    get_exchange_rate,
     is_valid_date,
     normalize_column_lowercase,
     normalize_missing_values,
@@ -176,3 +179,64 @@ def test_validate_df_with_mix_of_valid_and_invalid_rows():
         "invalid date",
         "missing expected_amount",
     ]
+
+
+class FakeResponse:
+    def raise_for_status(self):
+        pass
+
+    def json(self):
+        return {"rates": {"USD": 1}}
+
+
+def test_get_exchange_rate_ok(monkeypatch):
+    def fake_get(*args, **kwargs):
+        return FakeResponse()
+
+    monkeypatch.setattr("order_to_cash.cleaning.requests.get", fake_get)
+    assert get_exchange_rate("EUR", "USD") == 1
+
+
+def test_get_exchange_rate_timeout(monkeypatch):
+    def fake_get(*args, **kwargs):
+        raise requests.Timeout()
+
+    monkeypatch.setattr("order_to_cash.cleaning.requests.get", fake_get)
+    with pytest.raises(requests.Timeout):
+        get_exchange_rate("EUR", "USD")
+
+
+def test_get_exchange_rate_http_error(monkeypatch):
+    def fake_get(*args, **kwargs):
+        raise requests.HTTPError()
+
+    monkeypatch.setattr("order_to_cash.cleaning.requests.get", fake_get)
+    with pytest.raises(requests.HTTPError):
+        get_exchange_rate("EUR", "USD")
+
+
+def test_get_exchange_rate_request_exception(monkeypatch):
+    def fake_get(*args, **kwargs):
+        raise requests.RequestException()
+
+    monkeypatch.setattr("order_to_cash.cleaning.requests.get", fake_get)
+    with pytest.raises(requests.RequestException):
+        get_exchange_rate("EUR", "USD")
+
+
+def test_get_exchange_rate_key_error(monkeypatch):
+    def fake_get(*args, **kwargs):
+        raise KeyError
+
+    monkeypatch.setattr("order_to_cash.cleaning.requests.get", fake_get)
+    with pytest.raises(KeyError):
+        get_exchange_rate("EUR", "USD")
+
+
+def test_get_exchange_rate_value_error(monkeypatch):
+    def fake_get(*args, **kwargs):
+        raise ValueError
+
+    monkeypatch.setattr("order_to_cash.cleaning.requests.get", fake_get)
+    with pytest.raises(ValueError):
+        get_exchange_rate("EUR", "USD")
