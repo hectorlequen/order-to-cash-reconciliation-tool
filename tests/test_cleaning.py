@@ -6,6 +6,7 @@ from order_to_cash.cleaning import (
     normalize_missing_values,
     remove_duplicates,
     trim_spaces,
+    validate_df,
 )
 
 
@@ -94,3 +95,84 @@ def test_remove_duplicates_keeps_unique_rows_unchanged():
     df = pd.DataFrame({"order_id": ["A1", "A2", "A3"]})
     result = remove_duplicates(df, "order_id")
     assert result["order_id"].tolist() == ["A1", "A2", "A3"]
+
+
+def test_validate_df_with_all_valid_rows_returns_everything_in_valid():
+    df = pd.DataFrame(
+        {
+            "order_id": ["A1", "A2"],
+            "order_date": ["2026-01-01", "2026-01-02"],
+            "expected_amount": [10, 20],
+        }
+    )
+    df_valid, df_rejected = validate_df(
+        df, "order_date", ["order_id", "expected_amount"]
+    )
+    assert df_valid.equals(df)
+    assert df_rejected.empty
+
+
+def test_validate_df_with_invalid_date_rejects_row_with_reason():
+    df = pd.DataFrame(
+        {
+            "order_id": ["A1"],
+            "order_date": ["not a date"],
+            "expected_amount": [10],
+        }
+    )
+    df_valid, df_rejected = validate_df(
+        df, "order_date", ["order_id", "expected_amount"]
+    )
+    assert df_valid.empty
+    assert df_rejected["rejection_reason"].tolist() == ["invalid date"]
+
+
+def test_validate_df_with_missing_critical_field_rejects_row_with_reason():
+    df = pd.DataFrame(
+        {
+            "order_id": ["A1"],
+            "order_date": ["2026-01-01"],
+            "expected_amount": [None],
+        }
+    )
+    df_valid, df_rejected = validate_df(
+        df, "order_date", ["order_id", "expected_amount"]
+    )
+    assert df_valid.empty
+    assert df_rejected["rejection_reason"].tolist() == ["missing expected_amount"]
+
+
+def test_validate_df_with_invalid_date_and_missing_field_rejects_with_both_reasons():
+    df = pd.DataFrame(
+        {
+            "order_id": ["A1"],
+            "order_date": ["not a date"],
+            "expected_amount": [None],
+        }
+    )
+    df_valid, df_rejected = validate_df(
+        df, "order_date", ["order_id", "expected_amount"]
+    )
+    assert df_valid.empty
+    assert df_rejected["rejection_reason"].tolist() == [
+        "invalid date, missing expected_amount"
+    ]
+
+
+def test_validate_df_with_mix_of_valid_and_invalid_rows():
+    df = pd.DataFrame(
+        {
+            "order_id": ["A1", "A2", "A3"],
+            "order_date": ["2026-01-01", "not a date", "2026-01-03"],
+            "expected_amount": [10, 20, None],
+        }
+    )
+    df_valid, df_rejected = validate_df(
+        df, "order_date", ["order_id", "expected_amount"]
+    )
+    assert df_valid["order_id"].tolist() == ["A1"]
+    assert df_rejected["order_id"].tolist() == ["A2", "A3"]
+    assert df_rejected["rejection_reason"].tolist() == [
+        "invalid date",
+        "missing expected_amount",
+    ]

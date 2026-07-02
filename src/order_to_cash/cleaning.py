@@ -61,7 +61,7 @@ def validate_df(
         if not is_valid_date(row[date_column_name]):
             reject_reasons.append("invalid date")
         for field in critical_fields:
-            if field not in row:
+            if field not in row or pd.isna(row[field]):
                 reject_reasons.append(f"missing {field}")
         if reject_reasons:
             rejected_indexes.append(idx)
