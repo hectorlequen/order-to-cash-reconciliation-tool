@@ -1,3 +1,5 @@
+from unittest.mock import MagicMock
+
 import pandas as pd
 import pytest
 import requests
@@ -6,6 +8,7 @@ from order_to_cash.cleaning import (
     get_exchange_rate,
     is_valid_date,
     normalize_column_lowercase,
+    normalize_currency,
     normalize_missing_values,
     remove_duplicates,
     trim_spaces,
@@ -240,3 +243,92 @@ def test_get_exchange_rate_value_error(monkeypatch):
     monkeypatch.setattr("order_to_cash.cleaning.requests.get", fake_get)
     with pytest.raises(ValueError):
         get_exchange_rate("EUR", "USD")
+
+
+def test_normalize_currency_does_not_convert_rows_already_in_target_currency(
+    monkeypatch,
+):
+    mock_get_exchange_rate = MagicMock()
+    monkeypatch.setattr(
+        "order_to_cash.cleaning.get_exchange_rate", mock_get_exchange_rate
+    )
+    df = pd.DataFrame({"amount": [10, 20], "currency": ["EUR", "EUR"]})
+    result = normalize_currency(df, ["amount"])
+    mock_get_exchange_rate.assert_not_called()
+    assert result["amount"].tolist() == [10, 20]
+    assert result["currency"].tolist() == ["EUR", "EUR"]
+
+
+def test_normalize_currency_converts_amount_and_updates_currency(monkeypatch):
+    monkeypatch.setattr(
+        "order_to_cash.cleaning.get_exchange_rate", MagicMock(return_value=2)
+    )
+    df = pd.DataFrame({"amount": [10], "currency": ["USD"]})
+    result = normalize_currency(df, ["amount"])
+    assert result["amount"].tolist() == [20]
+    assert result["currency"].tolist() == ["EUR"]
+
+
+def test_normalize_currency_converts_all_specified_columns(monkeypatch):
+    monkeypatch.setattr(
+        "order_to_cash.cleaning.get_exchange_rate", MagicMock(return_value=2)
+    )
+    df = pd.DataFrame(
+        {"unit_price": [10], "expected_amount": [100], "currency": ["USD"]}
+    )
+    result = normalize_currency(df, ["unit_price", "expected_amount"])
+    assert result["unit_price"].tolist() == [20]
+    assert result["expected_amount"].tolist() == [200]
+
+
+def test_normalize_currency_leaves_target_currency_rows_unchanged_in_mixed_df(
+    monkeypatch,
+):
+    monkeypatch.setattr(
+        "order_to_cash.cleaning.get_exchange_rate", MagicMock(return_value=2)
+    )
+    df = pd.DataFrame({"amount": [10, 20], "currency": ["EUR", "USD"]})
+    result = normalize_currency(df, ["amount"])
+    assert result["amount"].tolist() == [10, 40]
+    assert result["currency"].tolist() == ["EUR", "EUR"]
+
+
+def test_normalize_currency_applies_different_rates_per_currency(monkeypatch):
+    rates = {"USD": 2, "GBP": 3}
+    mock_get_exchange_rate = MagicMock(
+        side_effect=lambda currency_from, currency_to: rates[currency_from]
+    )
+    monkeypatch.setattr(
+        "order_to_cash.cleaning.get_exchange_rate", mock_get_exchange_rate
+    )
+    df = pd.DataFrame({"amount": [10, 10], "currency": ["USD", "GBP"]})
+    result = normalize_currency(df, ["amount"])
+    assert result["amount"].tolist() == [20, 30]
+    assert result["currency"].tolist() == ["EUR", "EUR"]
+
+
+def test_normalize_currency_calls_get_exchange_rate_with_correct_currencies(
+    monkeypatch,
+):
+    mock_get_exchange_rate = MagicMock(return_value=1)
+    monkeypatch.setattr(
+        "order_to_cash.cleaning.get_exchange_rate", mock_get_exchange_rate
+    )
+    df = pd.DataFrame({"amount": [10], "currency": ["USD"]})
+    normalize_currency(df, ["amount"], currency_target="EUR")
+    mock_get_exchange_rate.assert_called_once_with("USD", "EUR")
+
+
+def test_normalize_currency_respects_custom_column_and_target(monkeypatch):
+    monkeypatch.setattr(
+        "order_to_cash.cleaning.get_exchange_rate", MagicMock(return_value=2)
+    )
+    df = pd.DataFrame({"amount": [10], "money_currency": ["GBP"]})
+    result = normalize_currency(
+        df,
+        ["amount"],
+        currency_column_name="money_currency",
+        currency_target="USD",
+    )
+    assert result["amount"].tolist() == [20]
+    assert result["money_currency"].tolist() == ["USD"]
