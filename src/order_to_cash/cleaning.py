@@ -61,7 +61,7 @@ def validate_df(
         if not is_valid_date(row[date_column_name]):
             reject_reasons.append("invalid date")
         for field in critical_fields:
-            if not has_critical_field(row, field):
+            if field not in row:
                 reject_reasons.append(f"missing {field}")
         if reject_reasons:
             rejected_indexes.append(idx)
@@ -146,7 +146,3 @@ def get_exchange_rate(currency_from: str, currency_to: str) -> float:
 
 def is_valid_date(_date: str) -> bool:
     return not pd.isnull(pd.to_datetime(_date, errors="coerce"))
-
-
-def has_critical_field(row: pd.Series, field: str) -> bool:
-    return not pd.isnull(row[field])
