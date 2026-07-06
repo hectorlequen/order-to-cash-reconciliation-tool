@@ -1,38 +1,47 @@
 import logging
+import re
 
 import pandas as pd
+import pycountry
 import requests
 
 logger = logging.getLogger(__name__)
 
+EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
 
 def clean_customers(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    for column_name in ["first_name", "last_name", "email", "country"]:
-        df = normalize_column_lowercase(df, column_name)
     df = trim_spaces(df)
+    for column_name in ["first_name", "last_name"]:
+        df = normalize_column_capitalize(df, column_name)
+    df = normalize_column_lowercase(df, "email")
+    df = normalize_country_column(df, "country")
+    df = remove_duplicates(df, "customer_id")
     return df
 
 
 def clean_orders(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+    df = trim_spaces(df)
     for column_name in ["product", "category", "order_status"]:
         df = normalize_column_lowercase(df, column_name)
-    df = trim_spaces(df)
-    df = remove_duplicates(df, "order_id")
+    df = normalize_column_uppercase(df, "currency")
     df = normalize_missing_values(df)
     df = normalize_currency(df, ["unit_price", "expected_amount"])
+    df = remove_duplicates(df, "order_id")
     return df
 
 
 def clean_payments(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
+    df = trim_spaces(df)
     for column_name in ["payment_status", "refund_status"]:
         df = normalize_column_lowercase(df, column_name)
-    df = trim_spaces(df)
-    df = remove_duplicates(df, "payment_id")
+    df = normalize_column_uppercase(df, "currency")
     df = normalize_missing_values(df)
     df = normalize_currency(df, ["amount_paid", "refund_amount"])
+    df = remove_duplicates(df, "payment_id")
     return df
 
 
@@ -43,6 +52,7 @@ def validate_customers(
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
     if critical_fields is None:
         critical_fields = ["customer_id"]
+    df["valid_email"] = df["email"].apply(validate_email)
     return validate_df(df, date_column_name, critical_fields)
 
 
@@ -91,18 +101,53 @@ def validate_df(
     return df_valid, df_rejected
 
 
-def validate_email():
-    pass
+def validate_email(email: str) -> bool:
+    if not isinstance(email, str):
+        return False
+    return bool(EMAIL_REGEX.match(email))
 
 
-def normalize_country():
-    pass
+def normalize_country_column(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    df = df.copy()
+    df[column_name] = df[column_name].apply(normalize_country)
+    return df
+
+
+def normalize_country(value: str) -> str:
+    if not isinstance(value, str):
+        return value
+    stripped_value = value.strip()
+    country = pycountry.countries.get(
+        alpha_2=stripped_value.upper()
+    ) or pycountry.countries.get(alpha_3=stripped_value.upper())
+    if country is not None:
+        return country.name
+    try:
+        return pycountry.countries.search_fuzzy(stripped_value)[0].name
+    except LookupError:
+        return value
 
 
 def normalize_column_lowercase(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
     df = df.copy()
     df[column_name] = df[column_name].apply(
         lambda x: x.lower() if isinstance(x, str) else x
+    )
+    return df
+
+
+def normalize_column_uppercase(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    df = df.copy()
+    df[column_name] = df[column_name].apply(
+        lambda x: x.upper() if isinstance(x, str) else x
+    )
+    return df
+
+
+def normalize_column_capitalize(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+    df = df.copy()
+    df[column_name] = df[column_name].apply(
+        lambda x: x.capitalize() if isinstance(x, str) else x
     )
     return df
 
