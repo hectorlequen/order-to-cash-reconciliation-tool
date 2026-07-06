@@ -7,7 +7,11 @@ import requests
 from order_to_cash.cleaning import (
     get_exchange_rate,
     is_valid_date,
+    normalize_column_capitalize,
     normalize_column_lowercase,
+    normalize_column_uppercase,
+    normalize_country,
+    normalize_country_column,
     normalize_currency,
     normalize_missing_values,
     remove_duplicates,
@@ -52,6 +56,42 @@ def test_normalize_column_lowercase_does_not_affect_other_columns():
     df = pd.DataFrame({"status": ["PAID"], "product": ["MUG"]})
     result = normalize_column_lowercase(df, "status")
     assert result["product"].tolist() == ["MUG"]
+
+
+def test_normalize_column_uppercase_uppercases_strings():
+    df = pd.DataFrame({"currency": ["eur", "Usd", "GBP"]})
+    result = normalize_column_uppercase(df, "currency")
+    assert result["currency"].tolist() == ["EUR", "USD", "GBP"]
+
+
+def test_normalize_column_uppercase_ignores_non_string_values():
+    df = pd.DataFrame({"currency": ["eur", None, 42]})
+    result = normalize_column_uppercase(df, "currency")
+    assert result["currency"].tolist() == ["EUR", None, 42]
+
+
+def test_normalize_column_uppercase_does_not_affect_other_columns():
+    df = pd.DataFrame({"currency": ["eur"], "product": ["mug"]})
+    result = normalize_column_uppercase(df, "currency")
+    assert result["product"].tolist() == ["mug"]
+
+
+def test_normalize_column_capitalize_capitalizes_strings():
+    df = pd.DataFrame({"first_name": ["JOHN", "jane", "aLiCe"]})
+    result = normalize_column_capitalize(df, "first_name")
+    assert result["first_name"].tolist() == ["John", "Jane", "Alice"]
+
+
+def test_normalize_column_capitalize_ignores_non_string_values():
+    df = pd.DataFrame({"first_name": ["JOHN", None, 42]})
+    result = normalize_column_capitalize(df, "first_name")
+    assert result["first_name"].tolist() == ["John", None, 42]
+
+
+def test_normalize_column_capitalize_does_not_affect_other_columns():
+    df = pd.DataFrame({"first_name": ["JOHN"], "last_name": ["DOE"]})
+    result = normalize_column_capitalize(df, "first_name")
+    assert result["last_name"].tolist() == ["DOE"]
 
 
 def test_trim_spaces_strips_leading_and_trailing_spaces():
@@ -339,3 +379,40 @@ def test_normalize_currency_respects_custom_column_and_target(monkeypatch):
     )
     assert result["amount"].tolist() == [20]
     assert result["money_currency"].tolist() == ["USD"]
+
+
+def test_normalize_country_with_full_name():
+    assert normalize_country("France") == "France"
+
+
+def test_normalize_country_with_alpha_2_code():
+    assert normalize_country("FR") == "France"
+
+
+def test_normalize_country_with_alpha_3_code():
+    assert normalize_country("FRA") == "France"
+
+
+def test_normalize_country_with_lowercase_and_spaces():
+    assert normalize_country(" france ") == "France"
+
+
+def test_normalize_country_ignores_non_string_values():
+    assert normalize_country(None) is None
+    assert normalize_country(42) == 42
+
+
+def test_normalize_country_keeps_unrecognized_value_unchanged():
+    assert normalize_country("not a country") == "not a country"
+
+
+def test_normalize_country_column_normalizes_every_row():
+    df = pd.DataFrame({"country": ["France", "FR", " germany ", "DE"]})
+    result = normalize_country_column(df, "country")
+    assert result["country"].tolist() == ["France", "France", "Germany", "Germany"]
+
+
+def test_normalize_country_column_does_not_affect_other_columns():
+    df = pd.DataFrame({"country": ["FR"], "customer_id": ["C1"]})
+    result = normalize_country_column(df, "country")
+    assert result["customer_id"].tolist() == ["C1"]
