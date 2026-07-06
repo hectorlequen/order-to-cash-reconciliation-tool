@@ -56,20 +56,27 @@ def test_normalize_column_lowercase_does_not_affect_other_columns():
 
 def test_trim_spaces_strips_leading_and_trailing_spaces():
     df = pd.DataFrame({"product": ["  mug  ", "cup ", " plate"]})
-    result = trim_spaces(df, "product")
+    result = trim_spaces(df)
     assert result["product"].tolist() == ["mug", "cup", "plate"]
 
 
 def test_trim_spaces_ignores_non_string_values():
     df = pd.DataFrame({"product": ["  mug  ", None, 42]})
-    result = trim_spaces(df, "product")
+    result = trim_spaces(df)
     assert result["product"].tolist() == ["mug", None, 42]
 
 
-def test_trim_spaces_does_not_affect_other_columns():
+def test_trim_spaces_trims_every_column_containing_at_least_one_string():
     df = pd.DataFrame({"product": ["  mug  "], "category": [" home "]})
-    result = trim_spaces(df, "product")
-    assert result["category"].tolist() == [" home "]
+    result = trim_spaces(df)
+    assert result["product"].tolist() == ["mug"]
+    assert result["category"].tolist() == ["home"]
+
+
+def test_trim_spaces_leaves_columns_without_any_string_unchanged():
+    df = pd.DataFrame({"product": ["  mug  "], "quantity": [42]})
+    result = trim_spaces(df)
+    assert result["quantity"].tolist() == [42]
 
 
 def test_normalize_missing_values_replaces_empty_strings_with_none():

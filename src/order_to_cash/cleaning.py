@@ -6,11 +6,19 @@ import requests
 logger = logging.getLogger(__name__)
 
 
+def clean_customers(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    for column_name in ["first_name", "last_name", "email", "country"]:
+        df = normalize_column_lowercase(df, column_name)
+    df = trim_spaces(df)
+    return df
+
+
 def clean_orders(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     for column_name in ["product", "category", "order_status"]:
         df = normalize_column_lowercase(df, column_name)
-        df = trim_spaces(df, column_name)
+    df = trim_spaces(df)
     df = remove_duplicates(df, "order_id")
     df = normalize_missing_values(df)
     df = normalize_currency(df, ["unit_price", "expected_amount"])
@@ -21,11 +29,21 @@ def clean_payments(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     for column_name in ["payment_status", "refund_status"]:
         df = normalize_column_lowercase(df, column_name)
-        df = trim_spaces(df, column_name)
+    df = trim_spaces(df)
     df = remove_duplicates(df, "payment_id")
     df = normalize_missing_values(df)
     df = normalize_currency(df, ["amount_paid", "refund_amount"])
     return df
+
+
+def validate_customers(
+    df: pd.DataFrame,
+    date_column_name: str = "created_at",
+    critical_fields: list[str] | None = None,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
+    if critical_fields is None:
+        critical_fields = ["customer_id"]
+    return validate_df(df, date_column_name, critical_fields)
 
 
 def validate_orders(
@@ -73,6 +91,14 @@ def validate_df(
     return df_valid, df_rejected
 
 
+def validate_email():
+    pass
+
+
+def normalize_country():
+    pass
+
+
 def normalize_column_lowercase(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
     df = df.copy()
     df[column_name] = df[column_name].apply(
@@ -81,11 +107,13 @@ def normalize_column_lowercase(df: pd.DataFrame, column_name: str) -> pd.DataFra
     return df
 
 
-def trim_spaces(df: pd.DataFrame, column_name: str) -> pd.DataFrame:
+def trim_spaces(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
-    df[column_name] = df[column_name].apply(
-        lambda x: x.strip() if isinstance(x, str) else x
-    )
+    for column_name in df.columns:
+        if df[column_name].apply(lambda x: isinstance(x, str)).any():
+            df[column_name] = df[column_name].apply(
+                lambda x: x.strip() if isinstance(x, str) else x
+            )
     return df
 
 
