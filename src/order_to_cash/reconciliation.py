@@ -16,6 +16,10 @@ def reconcile(
     df_merged["reconciliation_status"] = df_merged.apply(
         lambda row: assign_status(row, rejected_order_ids), axis=1
     )
+    df_merged = pd.merge(df_merged, df_customers, on="customer_id", how="left")
+    df_merged["unknown_customer"] = (
+        df_merged["first_name"].isna() & df_merged["customer_id"].notna()
+    )
     return df_merged
 
 
