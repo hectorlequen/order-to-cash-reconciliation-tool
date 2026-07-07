@@ -63,6 +63,7 @@ def validate_orders(
     date_column_name: str = "order_date",
     critical_fields: list[str] | None = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
+    # TODO : check if expected_amount == unit_price * quantity
     if critical_fields is None:
         critical_fields = ["order_id", "expected_amount"]
     return validate_df(df, date_column_name, critical_fields)

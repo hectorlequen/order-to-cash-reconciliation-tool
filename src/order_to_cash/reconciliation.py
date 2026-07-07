@@ -24,10 +24,12 @@ def reconcile(
     df_customers_rejected: pd.DataFrame,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     df_merged = pd.merge(df_orders, df_payments, on="order_id", how="outer")
-    df_merged = df_merged.drop(columns=["payment_reference_y", "currency_y"])
-    df_merged = df_merged.rename(
-        columns={"payment_reference_x": "payment_reference", "currency_x": "currency"}
+    df_merged["currency"] = df_merged["currency_x"].fillna(df_merged["currency_y"])
+    df_merged = df_merged.drop(columns=["currency_x", "currency_y"])
+    df_merged["payment_reference"] = df_merged["payment_reference_x"].fillna(
+        df_merged["payment_reference_y"]
     )
+    df_merged = df_merged.drop(columns=["payment_reference_x", "payment_reference_y"])
     rejected_order_ids = set(df_orders_rejected["order_id"].dropna())
     df_merged["reconciliation_status"] = df_merged.apply(
         lambda row: assign_status(row, rejected_order_ids), axis=1
