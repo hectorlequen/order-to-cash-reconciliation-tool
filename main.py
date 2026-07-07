@@ -8,7 +8,9 @@ from src.order_to_cash.cleaning import (
     validate_orders,
     validate_payments,
 )
+from src.order_to_cash.reconciliation import reconcile
 
+pd.set_option("display.max_rows", None)
 df_customers = pd.read_excel("data/customers.xlsx")
 df_orders = pd.read_csv("data/orders.csv")
 df_payments = pd.read_csv("data/payments.csv")
@@ -21,9 +23,14 @@ df_customers, df_customers_rejected = validate_customers(df_customers)
 df_orders, df_orders_rejected = validate_orders(df_orders)
 df_payments, df_payments_rejected = validate_payments(df_payments)
 
+df_merged = reconcile(df_orders, df_payments, df_customers, df_orders_rejected)
+
 print(df_customers)
 print(df_customers_rejected)
 print(df_orders)
 print(df_orders_rejected)
 print(df_payments)
 print(df_payments_rejected)
+
+print(df_merged)
+print(df_merged["reconciliation_status"].value_counts())
