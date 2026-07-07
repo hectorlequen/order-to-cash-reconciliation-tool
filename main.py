@@ -9,6 +9,7 @@ from src.order_to_cash.cleaning import (
     validate_payments,
 )
 from src.order_to_cash.reconciliation import reconcile
+from src.order_to_cash.reporting import generate_report
 
 pd.set_option("display.max_rows", None)
 df_customers = pd.read_excel("data/customers.xlsx")
@@ -49,3 +50,7 @@ print("exceptions:", df_exceptions.shape)
 print(df_exceptions["reconciliation_status"].value_counts())
 print("refunds:", df_refunds.shape)
 print("rejected:", df_rejected.shape)
+
+generate_report(
+    df_reconciled, df_exceptions, df_refunds, df_rejected, "output/report.xlsx"
+)
