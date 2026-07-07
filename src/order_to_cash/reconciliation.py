@@ -1,12 +1,26 @@
 import pandas as pd
 
+EXCEPTION_STATUSES = [
+    "missing_payment",
+    "unexpected_payment",
+    "awaiting_payment",
+    "underpaid",
+    "overpaid",
+    "orphan_payment",
+    "payment_for_rejected_order",
+]
+
+REFUND_STATUSES = ["full_refund", "partial_refund"]
+
 
 def reconcile(
     df_orders: pd.DataFrame,
     df_payments: pd.DataFrame,
     df_customers: pd.DataFrame,
     df_orders_rejected: pd.DataFrame,
-) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    df_payments_rejected: pd.DataFrame,
+    df_customers_rejected: pd.DataFrame,
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     df_merged = pd.merge(df_orders, df_payments, on="order_id", how="outer")
     df_merged = df_merged.drop(columns=["payment_reference_y", "currency_y"])
     df_merged = df_merged.rename(
@@ -20,7 +34,18 @@ def reconcile(
     df_merged["unknown_customer"] = (
         df_merged["first_name"].isna() & df_merged["customer_id"].notna()
     )
-    return df_merged
+
+    df_reconciled = df_merged[df_merged["reconciliation_status"] == "reconciled"]
+    df_exceptions = df_merged[
+        df_merged["reconciliation_status"].isin(EXCEPTION_STATUSES)
+    ]
+    df_refunds = df_merged[df_merged["reconciliation_status"].isin(REFUND_STATUSES)]
+    df_rejected = pd.concat(
+        [df_orders_rejected, df_payments_rejected, df_customers_rejected],
+        ignore_index=True,
+    )
+
+    return df_reconciled, df_exceptions, df_refunds, df_rejected
 
 
 def assign_status(row, rejected_order_ids: pd.DataFrame):
