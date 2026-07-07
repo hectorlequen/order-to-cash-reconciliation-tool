@@ -24,8 +24,8 @@ def clean_customers(df: pd.DataFrame) -> pd.DataFrame:
 def clean_orders(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df = trim_spaces(df)
-    for column_name in ["product", "category", "order_status"]:
-        df = normalize_column_lowercase(df, column_name)
+    df = normalize_column_capitalize(df, "category")
+    df = normalize_column_lowercase(df, "order_status")
     df = normalize_column_uppercase(df, "currency")
     df = normalize_missing_values(df)
     df = normalize_currency(df, ["unit_price", "expected_amount"])
