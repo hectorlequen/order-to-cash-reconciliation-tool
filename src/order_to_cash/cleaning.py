@@ -29,6 +29,7 @@ def clean_orders(df: pd.DataFrame) -> pd.DataFrame:
     df = normalize_column_uppercase(df, "currency")
     df = normalize_missing_values(df)
     df = normalize_currency(df, ["unit_price", "expected_amount"])
+    df = round_columns(df, ["unit_price", "expected_amount"])
     df = remove_duplicates(df, "order_id")
     return df
 
@@ -41,6 +42,7 @@ def clean_payments(df: pd.DataFrame) -> pd.DataFrame:
     df = normalize_column_uppercase(df, "currency")
     df = normalize_missing_values(df)
     df = normalize_currency(df, ["amount_paid", "refund_amount"])
+    df = round_columns(df, ["amount_paid", "refund_amount"])
     df = remove_duplicates(df, "payment_id")
     return df
 
@@ -192,6 +194,15 @@ def normalize_currency(
                 currency_target
             )
 
+    return df
+
+
+def round_columns(
+    df: pd.DataFrame, columns_to_round: list[str], decimals: int = 2
+) -> pd.DataFrame:
+    df = df.copy()
+    for column_name in columns_to_round:
+        df[column_name] = df[column_name].round(decimals)
     return df
 
 

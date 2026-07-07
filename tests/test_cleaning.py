@@ -15,6 +15,7 @@ from order_to_cash.cleaning import (
     normalize_currency,
     normalize_missing_values,
     remove_duplicates,
+    round_columns,
     trim_spaces,
     validate_df,
 )
@@ -416,3 +417,28 @@ def test_normalize_country_column_does_not_affect_other_columns():
     df = pd.DataFrame({"country": ["FR"], "customer_id": ["C1"]})
     result = normalize_country_column(df, "country")
     assert result["customer_id"].tolist() == ["C1"]
+
+
+def test_round_columns_rounds_to_two_decimals_by_default():
+    df = pd.DataFrame({"unit_price": [10.12345, 5.005]})
+    result = round_columns(df, ["unit_price"])
+    assert result["unit_price"].tolist() == [10.12, 5.0]
+
+
+def test_round_columns_rounds_to_custom_decimals():
+    df = pd.DataFrame({"unit_price": [10.12345]})
+    result = round_columns(df, ["unit_price"], decimals=3)
+    assert result["unit_price"].tolist() == [10.123]
+
+
+def test_round_columns_rounds_multiple_columns():
+    df = pd.DataFrame({"unit_price": [10.126], "expected_amount": [20.554]})
+    result = round_columns(df, ["unit_price", "expected_amount"])
+    assert result["unit_price"].tolist() == [10.13]
+    assert result["expected_amount"].tolist() == [20.55]
+
+
+def test_round_columns_does_not_affect_other_columns():
+    df = pd.DataFrame({"unit_price": [10.12345], "quantity": [3.456]})
+    result = round_columns(df, ["unit_price"])
+    assert result["quantity"].tolist() == [3.456]
