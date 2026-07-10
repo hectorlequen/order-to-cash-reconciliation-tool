@@ -14,6 +14,8 @@ EXCEPTION_STATUSES = [
 
 REFUND_STATUSES = ["full_refund", "partial_refund"]
 
+PAID_ORDER_STATUSES = ("paid", "completed")
+
 
 def reconcile(
     df_orders: pd.DataFrame,
@@ -53,60 +55,97 @@ def reconcile(
 
 
 def assign_status(row, rejected_order_ids: set) -> str:
-    if pd.isna(row["order_status"]) and row["order_id"] in rejected_order_ids:
+    if _is_rejected_order_payment(row, rejected_order_ids):
         return "payment_for_rejected_order"
-    elif pd.isna(row["order_status"]):
+    elif _has_no_order(row):
         return "orphan_payment"
-    elif (
-        not pd.isna(row["refund_id"])
-        and row["refund_status"] == "succeeded"
-        and row["refund_amount"] == row["amount_paid"]
-    ):
+    elif _is_full_refund(row):
         return "full_refund"
-    elif (
-        not pd.isna(row["refund_id"])
-        and row["refund_status"] == "succeeded"
-        and row["refund_amount"] < row["amount_paid"]
-    ):
+    elif _is_partial_refund(row):
         return "partial_refund"
-    elif not pd.isna(row["refund_id"]) and row["refund_status"] != "succeeded":
+    elif _has_pending_refund(row):
         return "to_refund"
-    elif (
+    elif _is_cancelled_awaiting_refund(row):
+        return "to_refund"
+    elif _is_cancelled_without_payment(row):
+        return "order_cancelled"
+    elif _is_paid_order(row) and _has_succeeded_payment(row) and _amounts_match(row):
+        return "reconciled"
+    elif _is_paid_order(row) and (_has_failed_payment(row) or _has_no_payment(row)):
+        return "missing_payment"
+    elif _is_open_order(row) and _has_succeeded_payment(row):
+        return "unexpected_payment"
+    elif _is_open_order(row) and _has_no_payment(row):
+        return "awaiting_payment"
+    elif _is_paid_order(row) and _is_underpaid(row):
+        return "underpaid"
+    elif _is_paid_order(row) and _is_overpaid(row):
+        return "overpaid"
+
+
+def _has_no_order(row) -> bool:
+    return pd.isna(row["order_status"])
+
+
+def _is_rejected_order_payment(row, rejected_order_ids: set) -> bool:
+    return _has_no_order(row) and row["order_id"] in rejected_order_ids
+
+
+def _has_succeeded_refund(row) -> bool:
+    return not pd.isna(row["refund_id"]) and row["refund_status"] == "succeeded"
+
+
+def _has_pending_refund(row) -> bool:
+    return not pd.isna(row["refund_id"]) and row["refund_status"] != "succeeded"
+
+
+def _is_full_refund(row) -> bool:
+    return _has_succeeded_refund(row) and row["refund_amount"] == row["amount_paid"]
+
+
+def _is_partial_refund(row) -> bool:
+    return _has_succeeded_refund(row) and row["refund_amount"] < row["amount_paid"]
+
+
+def _is_cancelled_awaiting_refund(row) -> bool:
+    return (
         row["order_status"] == "cancelled"
         and row["payment_status"] == "succeeded"
         and pd.isna(row["refund_id"])
-    ):
-        return "to_refund"
-    elif row["order_status"] == "cancelled" and pd.isna(row["payment_status"]):
-        return "order_cancelled"
-    elif (
-        row["order_status"] in ("paid", "completed")
-        and row["payment_status"] == "succeeded"
-        and row["expected_amount"] == row["amount_paid"]
-    ):
-        return "reconciled"
-    elif row["order_status"] in ("paid", "completed") and (
-        row["payment_status"] == "failed" or pd.isna(row["payment_status"])
-    ):
-        return "missing_payment"
-    elif (
-        row["order_status"] not in ("paid", "completed", "cancelled")
-        and row["payment_status"] == "succeeded"
-    ):
-        return "unexpected_payment"
-    elif row["order_status"] not in (
-        "paid",
-        "completed",
-        "cancelled",
-    ) and pd.isna(row["payment_status"]):
-        return "awaiting_payment"
-    elif (
-        row["order_status"] in ("paid", "completed")
-        and row["expected_amount"] > row["amount_paid"]
-    ):
-        return "underpaid"
-    elif (
-        row["order_status"] in ("paid", "completed")
-        and row["expected_amount"] < row["amount_paid"]
-    ):
-        return "overpaid"
+    )
+
+
+def _is_cancelled_without_payment(row) -> bool:
+    return row["order_status"] == "cancelled" and pd.isna(row["payment_status"])
+
+
+def _is_paid_order(row) -> bool:
+    return row["order_status"] in PAID_ORDER_STATUSES
+
+
+def _is_open_order(row) -> bool:
+    return row["order_status"] not in (*PAID_ORDER_STATUSES, "cancelled")
+
+
+def _has_succeeded_payment(row) -> bool:
+    return row["payment_status"] == "succeeded"
+
+
+def _has_failed_payment(row) -> bool:
+    return row["payment_status"] == "failed"
+
+
+def _has_no_payment(row) -> bool:
+    return pd.isna(row["payment_status"])
+
+
+def _amounts_match(row) -> bool:
+    return row["expected_amount"] == row["amount_paid"]
+
+
+def _is_underpaid(row) -> bool:
+    return row["expected_amount"] > row["amount_paid"]
+
+
+def _is_overpaid(row) -> bool:
+    return row["expected_amount"] < row["amount_paid"]
